@@ -1,0 +1,7 @@
+out/
+assets/cast/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+models/
