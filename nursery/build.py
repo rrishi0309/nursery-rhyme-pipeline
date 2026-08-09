@@ -23,11 +23,16 @@ from nursery.stages.assemble import AssembleStage
 
 log = logging.getLogger(__name__)
 
-CATALOG = Path(__file__).parent / "catalog" / "classics.yaml"
+CATALOG_DIR = Path(__file__).parent / "catalog"
+CATALOG_FILES = ["classics.yaml", "remixes.yaml"]
 
 
 def load_catalog() -> dict:
-    return yaml.safe_load(CATALOG.read_text(encoding="utf-8"))
+    """Merge every catalog file into one slug -> entry namespace."""
+    catalog: dict = {}
+    for name in CATALOG_FILES:
+        catalog.update(yaml.safe_load((CATALOG_DIR / name).read_text(encoding="utf-8")))
+    return catalog
 
 
 def _default_image_provider(style: str):

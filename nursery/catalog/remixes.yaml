@@ -1,0 +1,197 @@
+# "Classic with a twist" rhymes.
+#
+# Strategy: open with the traditional couplet verbatim (it's centuries-old
+# public domain, and it's what makes the video findable by search - people
+# look for "Twinkle Twinkle" by name), then break expectation with an
+# original twist verse, then resolve. The mid-song surprise is a deliberate
+# rewatch/attention hook: the viewer can't predict where a "twist" version of
+# a song they already know is going to go.
+#
+# Only the opening couplets are the traditional public-domain text; every
+# twist verse and every melody note past that point is newly written here.
+
+twinkle-rocket-star:
+  title: "Twinkle Twinkle Little Star (Rocket Ship Twist!)"
+  based_on: twinkle-twinkle
+  style: >-
+    children's storybook illustration, soft rounded shapes, bright cheerful
+    colours, flat vector art with thick friendly outlines, warm and gentle,
+    no text
+  tempo_bpm: 100
+  melody:
+    # Phrase 1 - the classic opening, verbatim (recognisable hook)
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:1
+    - A4:1
+    - G4:2
+    # Phrase 2 - classic second phrase, verbatim
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+    # Phrase 3 - rising "surprise" motif, brighter register, signals a twist
+    - G4:1
+    - G4:1
+    - A4:1
+    - A4:1
+    - B4:1
+    - B4:1
+    - C5:2
+    # Phrase 4 - descending "swoop", the reveal
+    - C5:1
+    - B4:1
+    - A4:1
+    - G4:1
+    - F4:1
+    - E4:1
+    - D4:2
+    # Phrase 5 - ascending arpeggio "zoom" motif, excitement
+    - C4:0.5
+    - E4:0.5
+    - G4:0.5
+    - C5:0.5
+    - E5:1
+    - D5:1
+    - C5:2
+    # Phrase 6 - descending "whoosh" coming back down
+    - C5:1
+    - A4:1
+    - F4:1
+    - D4:1
+    - G4:1
+    - G4:1
+    - C4:2
+    # Phrase 7 - reprise of phrase 1, satisfying return
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:1
+    - A4:1
+    - G4:2
+    # Phrase 8 - reprise of phrase 2, resolution
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+  lines:
+    - text: Twinkle, twinkle, little star
+      visual: a cheerful yellow star twinkling alone in a deep blue night sky
+    - text: How I wonder what you are
+      visual: a curious child in pyjamas at a window, looking up and wondering at the star
+    - text: Then the star gave a great big wink
+      visual: close-up of the star winking mischievously, sparkles bursting around it
+    - text: "I'm a rocket ship! What do you think?"
+      visual: the star mid-transformation into a shiny friendly rocket ship with a smiling face and a sparkle trail
+    - text: Zoom up high past the clouds so bright
+      visual: the smiling rocket ship zooming upward past fluffy glowing clouds in the night sky
+    - text: Whoosh through the sparkly sky at night
+      visual: the rocket ship zooming past colourful shooting stars and tiny planets, joyful motion trail
+    - text: Twinkle, twinkle, rocket star
+      visual: the rocket ship now twinkling gently like a star, hovering peacefully above a sleepy little town
+    - text: Now I know just what you are
+      visual: the child back at the window smiling and waving up at the rocket star, cosy bedroom glow
+
+baa-baa-rainbow-sheep:
+  title: "Baa Baa Black Sheep (Rainbow Wool Twist!)"
+  based_on: baa-baa-black-sheep
+  style: >-
+    children's storybook illustration, soft rounded shapes, bright cheerful
+    colours, flat vector art with thick friendly outlines, sunny farm setting,
+    no text
+  tempo_bpm: 108
+  melody:
+    # Phrase 1 - classic opening, verbatim
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:0.5
+    - A4:0.5
+    - B4:0.5
+    - B4:0.5
+    - G4:2
+    # Phrase 2 - classic second phrase, verbatim
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+    # Phrase 3 - rising, curious "can it be true?" motif
+    - D4:1
+    - E4:1
+    - F4:1
+    - G4:1
+    - A4:1
+    - B4:1
+    - C5:2
+    # Phrase 4 - bright bouncy reveal (red/blue)
+    - C5:0.5
+    - C5:0.5
+    - A4:0.5
+    - A4:0.5
+    - G4:0.5
+    - G4:0.5
+    - F4:2
+    # Phrase 5 - bright bouncy reveal (yellow/green), shifted down
+    - A4:0.5
+    - A4:0.5
+    - F4:0.5
+    - F4:0.5
+    - E4:0.5
+    - E4:0.5
+    - D4:2
+    # Phrase 6 - wiggly, silly descending run
+    - G4:0.5
+    - F4:0.5
+    - E4:0.5
+    - D4:0.5
+    - C4:0.5
+    - D4:0.5
+    - E4:2
+    # Phrase 7 - reprise of phrase 1
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:0.5
+    - A4:0.5
+    - B4:0.5
+    - B4:0.5
+    - G4:2
+    # Phrase 8 - reprise of phrase 2, resolution
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+  lines:
+    - text: Baa, baa, black sheep, have you any wool?
+      visual: a fluffy friendly black sheep standing in a sunny green meadow
+    - text: Yes sir, yes sir, three bags full
+      visual: three plump woolly sacks tied with ribbon beside the smiling sheep
+    - text: But wait, look closer, can it be true?
+      visual: a curious child peeking at the wool bags, one bag glowing softly
+    - text: One bag is red, and one bag is blue!
+      visual: two open wool sacks overflowing with bright red and blue fluffy wool
+    - text: One bag is yellow, spotted with green
+      visual: two more wool sacks bursting with sunny yellow wool and wool spotted with green, playful and colourful
+    - text: The silliest sheep that you've ever seen!
+      visual: the sheep now covered in patches of rainbow wool, striking a silly happy pose
+    - text: Baa, baa, rainbow sheep, we love your wool
+      visual: the rainbow-wooled sheep surrounded by cheering farm animal friends
+    - text: Every colour bag, our hearts are full!
+      visual: a joyful group hug of farmer, child, and rainbow sheep together under a rainbow in the sky
