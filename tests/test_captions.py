@@ -49,6 +49,33 @@ def test_ass_declares_the_video_resolution():
     assert "PlayResY: 1080" in ass
 
 
+def test_karaoke_primary_colour_is_the_sung_highlight_not_the_base():
+    """In ASS, `\\k` fills a word from SecondaryColour to PrimaryColour as it
+    is sung - so PrimaryColour is the *sung* (highlight) colour and
+    SecondaryColour is the *unsung* (base) colour. Every sing-along
+    convention has the line sit in a plain colour and each word light up in
+    a bright colour as it is sung, so PrimaryColour must be the amber
+    highlight and SecondaryColour the plain white - not the other way
+    around. See fix-round-1-findings.md finding 3.
+    """
+    ass = build_ass([CaptionLine(words=timings(("hi", 0.0, 1.0)))], 1920, 1080)
+
+    fmt_line = next(
+        line for line in ass.splitlines()
+        if line.startswith("Format:") and "PrimaryColour" in line
+    )
+    style_line = next(line for line in ass.splitlines() if line.startswith("Style:"))
+
+    fields = [f.strip() for f in fmt_line[len("Format:"):].split(",")]
+    values = [v.strip() for v in style_line[len("Style:"):].split(",")]
+
+    primary = values[fields.index("PrimaryColour")]
+    secondary = values[fields.index("SecondaryColour")]
+
+    assert primary == "&H0000D7FF"  # amber: the highlight a sung word fills to
+    assert secondary == "&H00FFFFFF"  # white: the plain, not-yet-sung colour
+
+
 def test_karaoke_durations_are_centiseconds():
     # 0.75s -> \k75
     ass = build_ass([CaptionLine(words=timings(("hi", 0.0, 0.75)))], 1920, 1080)

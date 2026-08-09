@@ -9,7 +9,11 @@ from nursery.providers.base import WordTiming
 
 _STYLE = (
     "Style: Karaoke,Arial Rounded MT Bold,84,"
-    "&H00FFFFFF,&H0000D7FF,&H00202020,&H80000000,"
+    # PrimaryColour is the *sung* colour (what \k fills a word to) and
+    # SecondaryColour is the *unsung* colour - so the highlight amber goes
+    # first, plain white second, matching the usual sing-along convention of
+    # words lighting up amber as they are sung.
+    "&H0000D7FF,&H00FFFFFF,&H00202020,&H80000000,"
     "-1,0,0,0,100,100,0,0,1,6,2,2,120,120,90,1"
 )
 
