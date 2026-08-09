@@ -88,7 +88,11 @@ def build_command(
     cmd = [binary, "-y"]
 
     for clip in clips:
-        cmd += ["-loop", "1", "-t", f"{clip.duration_s:.3f}", "-i", str(clip.image)]
+        # A still image is already exactly one frame; zoompan expands it to
+        # `d` frames on its own. `-loop 1 -t <dur>` would instead hand
+        # zoompan a full stream of duplicated frames, so it would emit `d`
+        # frames *per input frame* it receives rather than `d` frames total.
+        cmd += ["-i", str(clip.image)]
 
     cmd += ["-i", str(audio)]
     cmd += [
