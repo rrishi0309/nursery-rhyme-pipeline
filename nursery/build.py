@@ -30,6 +30,22 @@ def load_catalog() -> dict:
     return yaml.safe_load(CATALOG.read_text(encoding="utf-8"))
 
 
+def _default_image_provider(style: str):
+    """FLUX.1-schnell if available (faster, Apache-2.0), else SDXL."""
+    import shutil
+
+    if shutil.which("mflux-generate") is not None:
+        log.info("using FLUX.1-schnell for image generation")
+        from nursery.providers.image_flux import FluxImageProvider
+
+        return FluxImageProvider(style=style)
+
+    log.info("mflux not available, falling back to SDXL")
+    from nursery.providers.image_sdxl import SDXLImageProvider
+
+    return SDXLImageProvider(style=style)
+
+
 def build(
     slug: str,
     cfg: Config,
@@ -60,9 +76,7 @@ def build(
     log.info("rendering %d scene images", len(lines))
     provider = image_provider
     if provider is None:
-        from nursery.providers.image_sdxl import SDXLImageProvider
-
-        provider = SDXLImageProvider(style=entry["style"])
+        provider = _default_image_provider(entry["style"])
 
     scenes = []
     for i, line in enumerate(lines):
