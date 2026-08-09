@@ -1,0 +1,120 @@
+# Public-domain nursery rhymes.
+#
+# Lyrics here are traditional and out of copyright. Melodies are given as note
+# sequences and synthesized locally, so no recording or arrangement is copied.
+# "Twinkle Twinkle" uses the tune of "Ah! vous dirai-je, maman" (1761), which is
+# itself public domain.
+#
+# note syntax: "<NOTE><octave>:<beats>", r = rest. e.g. "C4:1", "r:0.5"
+
+twinkle-twinkle:
+  title: Twinkle Twinkle Little Star
+  style: >-
+    children's storybook illustration, soft rounded shapes, bright cheerful
+    colours, flat vector art with thick friendly outlines, warm and gentle,
+    no text
+  tempo_bpm: 100
+  melody:
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:1
+    - A4:1
+    - G4:2
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+    - G4:1
+    - G4:1
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:2
+    - G4:1
+    - G4:1
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:2
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:1
+    - A4:1
+    - G4:2
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+  lines:
+    - text: Twinkle, twinkle, little star
+      visual: a big smiling yellow star twinkling in a deep blue night sky
+    - text: How I wonder what you are
+      visual: a curious little child in pyjamas looking up through a round window at the stars
+    - text: Up above the world so high
+      visual: a view from high above soft clouds, tiny rolling green hills far below
+    - text: Like a diamond in the sky
+      visual: a sparkling diamond-shaped star glowing among swirling constellations
+    - text: Twinkle, twinkle, little star
+      visual: the smiling star surrounded by smaller cheerful stars in a purple sky
+    - text: How I wonder what you are
+      visual: the sleepy child tucked into bed, moonlight and stars through the window
+
+baa-baa-black-sheep:
+  title: Baa Baa Black Sheep
+  style: >-
+    children's storybook illustration, soft rounded shapes, bright cheerful
+    colours, flat vector art with thick friendly outlines, sunny farm setting,
+    no text
+  tempo_bpm: 108
+  melody:
+    - C4:1
+    - C4:1
+    - G4:1
+    - G4:1
+    - A4:0.5
+    - A4:0.5
+    - B4:0.5
+    - B4:0.5
+    - G4:2
+    - F4:1
+    - F4:1
+    - E4:1
+    - E4:1
+    - D4:1
+    - D4:1
+    - C4:2
+    - G4:1
+    - G4:1
+    - F4:0.5
+    - F4:0.5
+    - E4:0.5
+    - E4:0.5
+    - D4:2
+    - G4:1
+    - G4:1
+    - F4:0.5
+    - F4:0.5
+    - E4:0.5
+    - E4:0.5
+    - D4:2
+  lines:
+    - text: Baa, baa, black sheep, have you any wool?
+      visual: a fluffy friendly black sheep standing in a sunny green meadow
+    - text: Yes sir, yes sir, three bags full
+      visual: three plump woolly sacks tied with ribbon beside a smiling sheep
+    - text: One for the master, one for the dame
+      visual: a cheerful farmer and a kind farm woman waving beside a red barn
+    - text: And one for the little boy who lives down the lane
+      visual: a happy small child carrying a wool sack along a winding country lane

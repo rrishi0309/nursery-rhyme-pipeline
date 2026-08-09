@@ -7,6 +7,9 @@ dependencies = [
     "pydantic>=2.7",
     "typer>=0.12",
     "pyyaml>=6.0",
+    "mflux>=0.18.1",
+    "diffusers>=0.39.0",
+    "accelerate>=1.14.0",
 ]
 
 [project.scripts]
