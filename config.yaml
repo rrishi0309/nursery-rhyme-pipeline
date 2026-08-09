@@ -1,0 +1,20 @@
+# Pipeline configuration. Providers default to "fake" until Plan 2 wires real
+# models; see docs/superpowers/specs for the model selection table.
+out_dir: out
+assets_dir: assets
+review_gate: true
+
+video:
+  width: 1920
+  height: 1080
+  fps: 30
+  crossfade_s: 0.5
+  zoom_rate: 0.0008
+  max_zoom: 1.18
+
+providers:
+  llm: fake
+  song: fake
+  tts: fake
+  image: fake
+  align: fake
