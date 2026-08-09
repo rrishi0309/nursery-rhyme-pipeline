@@ -20,8 +20,13 @@ _UPSCALE = 4
 @dataclass(frozen=True)
 class SceneClip:
     image: Path
-    duration_s: float
+    start_s: float
+    end_s: float
     direction: PanDirection
+
+    @property
+    def duration_s(self) -> float:
+        return self.end_s - self.start_s
 
 
 def direction_for_index(i: int) -> PanDirection:
@@ -51,7 +56,15 @@ def build_filter_graph(clips: list[SceneClip], cfg, subtitles: Path | None) -> s
     parts: list[str] = []
 
     for i, clip in enumerate(clips):
-        frames = max(1, round(clip.duration_s * cfg.fps))
+        # Clip 0 is only ever the "background" (first) input to an xfade, and
+        # xfade drops that stream's content once the first blend ends, so it
+        # needs exactly its own nominal duration. Every later clip is used as
+        # the "incoming" (second) input of the xfade that transitions into
+        # it, and its own footage keeps being read past that transition (as
+        # the growing composite's tail, or - for the last clip - as the rest
+        # of the output) up to crossfade_s past its nominal duration.
+        pad = 0.0 if i == 0 else cfg.crossfade_s
+        frames = max(1, round((clip.duration_s + pad) * cfg.fps))
         zoom, x, y = _zoom_expr(clip.direction, cfg, frames)
         parts.append(
             f"[{i}:v]"
@@ -64,16 +77,18 @@ def build_filter_graph(clips: list[SceneClip], cfg, subtitles: Path | None) -> s
         )
 
     last = "v0"
-    offset = clips[0].duration_s - cfg.crossfade_s
     for i in range(1, len(clips)):
         label = f"x{i}"
+        # Scene timings are absolute, authoritative positions (from forced
+        # alignment), and in a left-folded xfade chain the offset is already
+        # expressed in absolute output time - no accumulation across clips.
+        offset = clips[i].start_s - cfg.crossfade_s
         parts.append(
             f"[{last}][v{i}]"
             f"xfade=transition=fade:duration={cfg.crossfade_s}:offset={offset:.3f}"
             f"[{label}]"
         )
         last = label
-        offset += clips[i].duration_s - cfg.crossfade_s
 
     if subtitles is not None:
         parts.append(f"[{last}]subtitles='{subtitles}'[vout]")

@@ -49,7 +49,8 @@ class AssembleStage(Stage):
             clips.append(
                 SceneClip(
                     image=Path(scene.image_path),
-                    duration_s=scene.end_s - scene.start_s,
+                    start_s=scene.start_s,
+                    end_s=scene.end_s,
                     direction=direction_for_index(scene.index),
                 )
             )

@@ -18,7 +18,8 @@ def _clear_capability_cache():
 
 
 def clips(n: int) -> list[SceneClip]:
-    return [SceneClip(image=Path(f"/tmp/s{i}.png"), duration_s=2.0, direction="in")
+    return [SceneClip(image=Path(f"/tmp/s{i}.png"), start_s=i * 2.0, end_s=(i + 1) * 2.0,
+                      direction="in")
             for i in range(n)]
 
 
