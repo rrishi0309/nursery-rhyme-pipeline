@@ -52,7 +52,12 @@ def mix_narration_over_bed(
     joined = "".join(f"[{label}]" for label in labels)
     parts.append(
         f"{joined}amix=inputs={len(labels)}:duration=longest:normalize=0,"
-        f"alimiter=limit=0.95,aresample=44100[out]"
+        # level=disabled: alimiter defaults to auto-normalising output back up
+        # near 0dB regardless of input gain, which is what was pushing every
+        # mix to the ceiling. limit=0.891 (~-1dBTP) leaves headroom for the
+        # inter-sample overshoot that lossy AAC encoding commonly introduces,
+        # instead of relying on the encoder not to clip.
+        f"alimiter=limit=0.891:level=disabled,aresample=44100[out]"
     )
 
     cmd += [
