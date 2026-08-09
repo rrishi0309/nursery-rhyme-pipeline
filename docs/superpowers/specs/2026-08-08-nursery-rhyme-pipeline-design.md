@@ -1,7 +1,7 @@
 # Nursery Rhyme Video Generation Pipeline — Design
 
 **Date:** 2026-08-08
-**Status:** Approved (design), model selections pending verification (see §10)
+**Status:** Approved. Model selections verified (see §10).
 
 ## 1. Purpose
 
@@ -275,18 +275,48 @@ implementation.
 
 ## 10. Model selections
 
-Pending verification by research pass. Each entry must record: model, exact
-license, commercial-use permission, Apple Silicon viability, measured speed on
-M4 Max, and install method. Anything unverified is not used.
+All picks are Apache-2.0 or MIT, commercially usable, and have a real Apple
+Silicon path.
 
-| Stage | Candidate | License | Commercial | MPS | Status |
-|---|---|---|---|---|---|
-| LLM | TBD | | | | pending |
-| Song | TBD | | | | pending |
-| TTS fallback | TBD | | | | pending |
-| Image | TBD | | | | pending |
-| Consistency | TBD | | | | pending |
-| Alignment | TBD | | | | pending |
+| Stage | Model | License | Apple Silicon path | Speed on M4 Max |
+|---|---|---|---|---|
+| LLM | Qwen2.5-32B-Instruct | Apache 2.0 | Ollama `qwen2.5:32b`, or MLX 4-bit | seconds; fits 64 GB at 4-bit |
+| Song | ACE-Step 1.5 | MIT | Official repo ships a macOS launcher and states MPS support; ComfyUI node exists | est. 1–3 min per 60–90 s track in turbo mode — **unbenchmarked, see §10.1** |
+| TTS fallback | Kokoro-82M | Apache 2.0 | `mlx-audio`, MLX-native | many times realtime |
+| Image | FLUX.1-schnell | Apache 2.0 | `mflux`, MLX-native | ~10.6 s per 1024x1024 at 2 steps (user-reported) |
+| Consistency | SDXL character LoRA + plain IP-Adapter | OpenRAIL++ / Apache 2.0 | Kohya SS on MPS for training; ComfyUI for inference | LoRA training ~10 GB peak |
+| Alignment | Qwen3-ForcedAligner-0.6B | Apache 2.0 | `mlx-qwen3-asr` or `qwen3-asr.cpp` (Metal) | fast; 0.6B |
+
+**Explicitly ruled out on licensing** — recorded so nobody re-proposes them:
+
+| Rejected | Reason |
+|---|---|
+| FLUX.1-dev | Non-commercial license; commercial use requires a paid BFL license |
+| XTTS-v2 | Coqui Public Model License is non-commercial, and Coqui is defunct so no commercial license can be bought |
+| F5-TTS (stock weights) | Weights are CC-BY-NC-4.0 via the Emilia dataset. The `OpenF5-TTS-Base` retrain is Apache 2.0 if this model is ever wanted |
+| InstantID, IP-Adapter-FaceID | Both depend on InsightFace, which is non-commercial |
+| YuE | No first-party Apple Silicon path; CUDA + FlashAttention2 only |
+| Chatterbox | MIT and usable, but every output carries Resemble's imperceptible watermark. Not disqualifying, just not the default |
+
+### 10.1 Risks carried into implementation
+
+1. **ACE-Step speed on M4 Max is unmeasured.** Every timing figure is
+   extrapolated from M1 Pro and M3 Pro community reports; no M4 Max benchmark
+   exists for any open song model. Benchmarking it is the first task of the
+   generative plan, before anything depends on its throughput.
+2. **Qwen3-ForcedAligner's singing robustness is self-reported.** It is the only
+   aligner claiming to handle sung audio, but that claim comes from its own
+   model card with no third-party validation. WhisperX is known to be inaccurate
+   here, and Montreal Forced Aligner is speech-tuned. Validate against real
+   generated tracks; if it underperforms, fall back to distributing each line's
+   words evenly across its scene span, which is already good enough for karaoke
+   captions.
+3. **faster-whisper is CPU-only on Apple Silicon** (CTranslate2 has no MPS
+   backend). If transcription is ever needed for QA, use `whisper.cpp`.
+4. **FLUX LoRA training on MPS is not viable** in current tooling. Character
+   LoRAs are trained on SDXL, which has a working Kohya + MPS path.
+5. **ComfyUI FP8 models crash on MPS** with only a community patch available.
+   Avoid FP8 quantizations.
 
 ## 11. Build order
 
