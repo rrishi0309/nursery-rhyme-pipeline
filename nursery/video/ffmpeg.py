@@ -73,10 +73,7 @@ def _binary() -> str:
     return found
 
 
-def build_command(
-    clips: list[SceneClip], audio: Path, graph: str, out: Path, cfg
-) -> list[str]:
-    binary = _binary()
+def _check_subtitles(binary: str, graph: str) -> None:
     if "subtitles=" in graph and not has_subtitles_filter(binary):
         raise FFmpegError(
             f"resolved ffmpeg ({binary}) has no 'subtitles' filter (no libass), "
@@ -85,6 +82,34 @@ def build_command(
             "at one.",
             "",
         )
+
+
+def build_source_command(
+    sources, audio: Path, graph: str, out: Path, cfg
+) -> list[str]:
+    """Encode command for a mixed set of scene sources (clips and stills).
+
+    Each source supplies its own input arguments, since a generated clip is
+    read as a normal video stream while a still relies on zoompan to expand
+    its single frame.
+    """
+    binary = _binary()
+    _check_subtitles(binary, graph)
+
+    cmd = [binary, "-y"]
+    for src in sources:
+        cmd += src.input_args()
+
+    cmd += ["-i", str(audio)]
+    cmd += _encode_args(len(sources), graph, out, cfg)
+    return cmd
+
+
+def build_command(
+    clips: list[SceneClip], audio: Path, graph: str, out: Path, cfg
+) -> list[str]:
+    binary = _binary()
+    _check_subtitles(binary, graph)
     cmd = [binary, "-y"]
 
     for clip in clips:
@@ -95,10 +120,15 @@ def build_command(
         cmd += ["-i", str(clip.image)]
 
     cmd += ["-i", str(audio)]
-    cmd += [
+    cmd += _encode_args(len(clips), graph, out, cfg)
+    return cmd
+
+
+def _encode_args(n_inputs: int, graph: str, out: Path, cfg) -> list[str]:
+    return [
         "-filter_complex", graph,
         "-map", "[vout]",
-        "-map", f"{len(clips)}:a",
+        "-map", f"{n_inputs}:a",
         "-c:v", "libx264",
         "-preset", "medium",
         "-crf", "20",
@@ -110,7 +140,6 @@ def build_command(
         "-shortest",
         str(out),
     ]
-    return cmd
 
 
 def run_ffmpeg(cmd: list[str]) -> None:

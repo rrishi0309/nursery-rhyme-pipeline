@@ -16,6 +16,7 @@ STAGE_ORDER = [
     "align",
     "cast",
     "images",
+    "animate",
     "assemble",
     "metadata",
     "publish",

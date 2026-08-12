@@ -93,5 +93,5 @@ def test_get_unknown_stage_raises():
 def test_stage_order_is_the_documented_sequence():
     assert STAGE_ORDER == [
         "seed", "script", "audio", "align",
-        "cast", "images", "assemble", "metadata", "publish",
+        "cast", "images", "animate", "assemble", "metadata", "publish",
     ]

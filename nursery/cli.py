@@ -8,6 +8,7 @@ from pathlib import Path
 
 import typer
 
+import nursery.stages.animate
 import nursery.stages.assemble  # noqa: F401 - import registers the stage
 from nursery.config import Config
 from nursery.manifest import Manifest

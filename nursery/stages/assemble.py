@@ -13,8 +13,9 @@ from nursery.manifest import Manifest, VideoSpec
 from nursery.providers.base import WordTiming
 from nursery.stages.base import Stage, register
 from nursery.video.captions import group_words_into_lines, write_ass
-from nursery.video.ffmpeg import build_command, extract_thumbnail, run_ffmpeg
-from nursery.video.kenburns import SceneClip, build_filter_graph, direction_for_index
+from nursery.video.ffmpeg import build_source_command, extract_thumbnail, run_ffmpeg
+from nursery.video.kenburns import direction_for_index
+from nursery.video.scene_source import ClipSource, StillSource, build_scene_graph
 
 
 class AssembleStage(Stage):
@@ -23,7 +24,8 @@ class AssembleStage(Stage):
     def input_payload(self, m: Manifest, cfg: Config) -> object:
         return {
             "scenes": [
-                {"i": s.index, "img": s.image_path, "a": s.start_s, "b": s.end_s}
+                {"i": s.index, "img": s.image_path, "clip": s.clip_path,
+                 "a": s.start_s, "b": s.end_s}
                 for s in m.scenes
             ],
             "audio": m.audio.mix_path if m.audio else None,
@@ -40,14 +42,25 @@ class AssembleStage(Stage):
         if not m.scenes:
             raise ValueError("assemble requires at least one scene")
 
-        clips = []
+        sources = []
         for scene in m.scenes:
-            if scene.image_path is None:
-                raise ValueError(f"scene {scene.index} has no image")
             if scene.start_s is None or scene.end_s is None:
                 raise ValueError(f"scene {scene.index} has no timing")
-            clips.append(
-                SceneClip(
+
+            # A clip is used only if the animate stage kept it. Anything else -
+            # never animated, render failed, rejected by the quality gate -
+            # falls back to panning the still.
+            clip = Path(scene.clip_path) if scene.clip_path else None
+            if clip is not None and clip.exists():
+                sources.append(
+                    ClipSource(clip=clip, start_s=scene.start_s, end_s=scene.end_s)
+                )
+                continue
+
+            if scene.image_path is None:
+                raise ValueError(f"scene {scene.index} has neither a clip nor an image")
+            sources.append(
+                StillSource(
                     image=Path(scene.image_path),
                     start_s=scene.start_s,
                     end_s=scene.end_s,
@@ -59,10 +72,12 @@ class AssembleStage(Stage):
         video_dir.mkdir(parents=True, exist_ok=True)
 
         subtitles = self._write_captions(m, cfg, video_dir)
-        graph = build_filter_graph(clips, cfg.video, subtitles)
+        graph = build_scene_graph(sources, cfg.video, subtitles)
         final = video_dir / "final.mp4"
 
-        run_ffmpeg(build_command(clips, Path(m.audio.mix_path), graph, final, cfg.video))
+        run_ffmpeg(
+            build_source_command(sources, Path(m.audio.mix_path), graph, final, cfg.video)
+        )
 
         thumbnail = extract_thumbnail(final, at_s=min(1.0, m.audio.duration_s / 2),
                                       out=video_dir / "thumbnail.png")

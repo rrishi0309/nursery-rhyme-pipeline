@@ -19,6 +19,7 @@ from nursery.audio.mixer import NarrationClip, mix_narration_over_bed
 from nursery.config import Config
 from nursery.manifest import AudioSpec, Manifest, Scene
 from nursery.providers.tts_macos import MacTTSProvider
+from nursery.stages.animate import animate_scenes, build_provider
 from nursery.stages.assemble import AssembleStage
 
 log = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ def build(
     video_id: str | None = None,
     voice: str = "Samantha",
     image_provider=None,
+    animate_provider=None,
 ) -> Manifest:
     entry = load_catalog()[slug]
     lines = entry["lines"]
@@ -111,6 +113,12 @@ def build(
         ),
     )
     manifest.save(out_dir / "manifest.json")
+
+    provider = animate_provider if animate_provider is not None else build_provider(cfg)
+    if provider is not None:
+        log.info("animating %d scenes (this is the slow part)", len(scenes))
+        manifest = animate_scenes(manifest, cfg, provider)
+        manifest.save(out_dir / "manifest.json")
 
     log.info("assembling video")
     manifest = AssembleStage().execute(manifest, cfg)

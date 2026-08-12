@@ -12,9 +12,28 @@ video:
   zoom_rate: 0.0008
   max_zoom: 1.18
 
+# LTX-2.3 image-to-video. Dimensions must be divisible by 64; 1024x576 is
+# native 16:9 and upscales to 1080p in the assemble graph. Budget roughly
+# 2.5 min per scene on an M4 Max - a 90s video is about an hour.
+animate:
+  # LTX-2, not LTX-2.3: mlx-video needs the diffusers-style subdirectory
+  # layout, which only LTX-2 has. LTX-2 Community License permits commercial
+  # use only below $10M annual revenue - NOT Apache-2.0 like FLUX.1-schnell.
+  model_repo: Lightricks/LTX-2
+  pipeline: distilled
+  width: 1024
+  height: 576
+  min_source_ssim: 0.55
+  min_motion_ssim: 0.35
+  max_motion_ssim: 0.995
+
 providers:
   llm: fake
   song: fake
   tts: fake
   image: fake
   align: fake
+  # 'ltx' requires mlx-video, which is not installed: the LTX weights are a
+  # 314 GB unfiltered pull and a 19B model that does not fit 64 GB comfortably.
+  # See the comment on animate.model_repo before re-enabling.
+  animate: none

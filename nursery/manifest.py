@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from datetime import datetime
@@ -10,9 +11,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 StageStatus = Literal["pending", "running", "ok", "failed"]
+Animation = Literal["clip", "kenburns"]
 
 
 class Scene(BaseModel):
@@ -23,6 +25,9 @@ class Scene(BaseModel):
     image_path: str | None = None
     start_s: float | None = None
     end_s: float | None = None
+    clip_path: str | None = None
+    animation: Animation | None = None
+    animation_note: str | None = None
 
     @property
     def duration_s(self) -> float:
@@ -65,13 +70,22 @@ class Manifest(BaseModel):
 
     @classmethod
     def load(cls, path: Path) -> Manifest:
-        data = path.read_text(encoding="utf-8")
-        obj = cls.model_validate_json(data)
-        if obj.schema_version != SCHEMA_VERSION:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        version = raw.get("schema_version")
+
+        # v1 -> v2 added the animation fields to Scene. They are all optional
+        # with None defaults, so upgrading is just relabelling - and doing so
+        # is worth it, since rejecting a v1 manifest would throw away cached
+        # image and audio renders for no reason.
+        if version == 1:
+            raw["schema_version"] = 2
+            version = 2
+
+        if version != SCHEMA_VERSION:
             raise ValueError(
-                f"unsupported schema_version {obj.schema_version}, expected {SCHEMA_VERSION}"
+                f"unsupported schema_version {version}, expected {SCHEMA_VERSION}"
             )
-        return obj
+        return cls.model_validate(raw)
 
     def save(self, path: Path) -> None:
         """Serialize atomically so an interrupted run never corrupts the manifest."""
