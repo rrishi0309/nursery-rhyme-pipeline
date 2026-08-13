@@ -1,5 +1,6 @@
-# Pipeline configuration. Providers default to "fake" until Plan 2 wires real
-# models; see docs/superpowers/specs for the model selection table.
+# Pipeline configuration. Every model runs via subprocess against a real CLI;
+# see docs/tool-help/SUMMARY.md for the captured flag surfaces and
+# nursery/config.py for field docs.
 out_dir: out
 assets_dir: assets
 review_gate: true
@@ -12,28 +13,64 @@ video:
   zoom_rate: 0.0008
   max_zoom: 1.18
 
-# LTX-2.3 image-to-video. Dimensions must be divisible by 64; 1024x576 is
-# native 16:9 and upscales to 1080p in the assemble graph. Budget roughly
-# 2.5 min per scene on an M4 Max - a 90s video is about an hour.
+# Qwen via mlx_lm.generate. Runs from the project's own venv.
+lyrics:
+  model_repo: mlx-community/Qwen3.5-4B-MLX-4bit
+  max_tokens: 2048
+  temperature: 0.8
+  max_retries: 3
+
+# ACE-Step 1.5, driven via a TOML config file - its CLI is wizard/config only.
+# Requires Python <3.13, so it lives in its own venv under ~/.cache/nursery-tools.
+# `python`/`repo_dir` are left unset here so the code-side default (computed
+# from the running machine's actual home directory) applies - hardcoding an
+# absolute path in checked-in YAML would bake in one machine's home dir.
+song:
+  variant: ACE-Step/acestep-v15-xl-turbo
+  inference_steps: 8
+  guidance_scale: 7.0
+  audio_format: wav
+  duration: -1.0
+  backend: mlx
+
+# whisperx-mlx word-level alignment, recovering line timings from the sung
+# audio. Not on PyPI; lives in its own venv. backend must be "lightning" (or
+# "mlx_lightning") to get word timestamps - plain "mlx" may not emit them.
+# `bin` is left unset here for the same reason as song.python above.
+align:
+  model: small
+  backend: lightning
+  max_drift_s: 0.75
+
+# FLUX.2 Klein via mflux-generate-flux2. Runs from the project's own venv.
+image:
+  model: flux2-klein-4b
+  steps: 4
+  width: 1344
+  height: 768
+  quantize: 4
+  guidance: 3.5
+  cast_strength: 0.35
+
+# LTX-2.3 image-to-video via ltx-2-mlx. Dimensions are ltx-2-mlx's own
+# defaults (704x480); frame_rate is mandatory (the tool has no default).
+# Not on PyPI; lives in its own venv (bin left unset, see song.python above).
+# Budget roughly 2.5 min per scene on an M4 Max - a 90s video is about an hour.
 animate:
-  # LTX-2, not LTX-2.3: mlx-video needs the diffusers-style subdirectory
-  # layout, which only LTX-2 has. LTX-2 Community License permits commercial
-  # use only below $10M annual revenue - NOT Apache-2.0 like FLUX.1-schnell.
-  model_repo: Lightricks/LTX-2
-  pipeline: distilled
-  width: 1024
-  height: 576
+  model_repo: dgrauet/ltx-2.3-mlx-q4
+  width: 704
+  height: 480
+  frame_rate: 24
+  steps: 8
+  two_stage: false
+  low_ram: true
   min_source_ssim: 0.55
   min_motion_ssim: 0.35
   max_motion_ssim: 0.995
 
 providers:
-  llm: fake
-  song: fake
-  tts: fake
-  image: fake
-  align: fake
-  # 'ltx' requires mlx-video, which is not installed: the LTX weights are a
-  # 314 GB unfiltered pull and a 19B model that does not fit 64 GB comfortably.
-  # See the comment on animate.model_repo before re-enabling.
-  animate: none
+  lyrics: qwen
+  song: acestep
+  align: whisperx
+  image: flux2
+  animate: ltx
