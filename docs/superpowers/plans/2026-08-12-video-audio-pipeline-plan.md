@@ -120,8 +120,14 @@ New `nursery/providers/song_acestep.py` and `nursery/providers/align_whisperx.py
 Read `docs/tool-help/` for both invocations.
 
 `SongProvider.generate(lyrics: list[str], style: str, seed: int, out: Path) -> Path`
-- **ACE-Step has NO generate flags — it is TOML-config-only.** Write a temp
-  `.toml` with the keys SUMMARY.md lists (`save_dir`, `audio_format="wav"`,
+- **ACE-Step has NO generate flags — it is TOML-config-only.**
+  **The TOML must be a FLAT top-level table. No `[sections]`.** `cli.py` does
+  `for key, value in config_from_file.items(): setattr(args, key, value)`, so a
+  `[generation]` header would be set as one attribute named `generation` and
+  every real parameter would silently fall back to its default — no error, no
+  warning. There is also no key validation: a misspelled key is silently
+  ignored. Verify the generated TOML parses to a flat dict before invoking.
+  Write a temp `.toml` with the keys SUMMARY.md lists (`save_dir`, `audio_format="wav"`,
   `caption` = style, `lyrics` = lines joined by newline, `duration`,
   `instrumental=false`, `task_type="text2music"`, `inference_steps`, `seed`,
   `guidance_scale`, `backend="mlx"`), then run
