@@ -1,0 +1,111 @@
+usage: mflux-generate [-h]
+                      [--battery-percentage-stop-limit BATTERY_PERCENTAGE_STOP_LIMIT]
+                      [--low-ram] [--mlx-cache-limit-gb MLX_CACHE_LIMIT_GB]
+                      [--model MODEL]
+                      [--base-model {dev,schnell,krea-dev,dev-krea,krea-2,krea2,qwen,fibo,fibo-lite,fibo-edit,fibo-edit-rmbg,z-image,z-image-turbo,flux2-klein-4b,flux2-klein-9b,flux2-klein-9b-kv,flux2-klein-base-4b,flux2-klein-base-9b,ernie-image-turbo,ernie-image,ideogram4}]
+                      [--quantize {3,5,4,6,8}]
+                      [--lora-style {couple,font,home,identity,illustration,portrait,ppt,sandstorm,sparklers,storyboard}]
+                      [--lora PATH [SCALE ...]]
+                      [--lora-paths [LORA_PATHS ...]]
+                      [--lora-scales [LORA_SCALES ...]] [--prompt PROMPT |
+                      --prompt-file PROMPT_FILE]
+                      [--negative-prompt NEGATIVE_PROMPT]
+                      [--seed SEED [SEED ...]] [--auto-seeds AUTO_SEEDS]
+                      [--scheduler SCHEDULER] [--height HEIGHT]
+                      [--width WIDTH] [--steps STEPS] [--guidance GUIDANCE]
+                      [--config-from-metadata CONFIG_FROM_METADATA]
+                      [--image PATH [STRENGTH ...]] [--image-path IMAGE_PATH]
+                      [--image-strength IMAGE_STRENGTH] [--metadata]
+                      [--output OUTPUT]
+                      [--stepwise-image-output-dir STEPWISE_IMAGE_OUTPUT_DIR]
+
+Generate an image based on a prompt.
+
+options:
+  -h, --help            show this help message and exit
+  --battery-percentage-stop-limit, -B BATTERY_PERCENTAGE_STOP_LIMIT
+                        On Macs powered by battery, stop image generation when
+                        battery reaches this percentage. Default: 5
+  --low-ram             Enable low-RAM mode to reduce memory usage (may impact
+                        performance).
+  --mlx-cache-limit-gb MLX_CACHE_LIMIT_GB
+                        Limit MLX cache size in GB without enabling full low-
+                        RAM mode (e.g. 8 or 16).
+  --model, -m MODEL     The model to use (dev or schnell or krea-dev or dev-
+                        krea or krea-2 or krea2 or qwen or fibo or fibo-lite
+                        or fibo-edit or fibo-edit-rmbg or z-image or z-image-
+                        turbo or flux2-klein-4b or flux2-klein-9b or
+                        flux2-klein-9b-kv or flux2-klein-base-4b or
+                        flux2-klein-base-9b or ernie-image-turbo or ernie-
+                        image or ideogram4, a HuggingFace repo org/model, or a
+                        local path).
+  --base-model {dev,schnell,krea-dev,dev-krea,krea-2,krea2,qwen,fibo,fibo-lite,fibo-edit,fibo-edit-rmbg,z-image,z-image-turbo,flux2-klein-4b,flux2-klein-9b,flux2-klein-9b-kv,flux2-klein-base-4b,flux2-klein-base-9b,ernie-image-turbo,ernie-image,ideogram4}
+                        When using a third-party huggingface model, explicitly
+                        specify whether the base model is dev or schnell
+  --quantize, -q {3,5,4,6,8}
+                        Quantize the model (3 or 5 or 4 or 6 or 8, Default is
+                        None)
+  --lora-paths [LORA_PATHS ...]
+                        [DEPRECATED: use --lora] LoRA paths: local files,
+                        HuggingFace repos (org/model), or collection format
+                        (repo:filename.safetensors)
+  --lora-scales [LORA_SCALES ...]
+                        [DEPRECATED: use --lora] Scaling factor to adjust the
+                        impact of LoRA weights on the model. A value of 1.0
+                        applies the LoRA weights as they are.
+  --prompt PROMPT       The textual description of the image to generate.
+  --prompt-file PROMPT_FILE
+                        Path to a file containing the prompt text. The file
+                        will be re-read before each generation, allowing you
+                        to edit the prompt between iterations when using
+                        multiple seeds without restarting the program.
+  --negative-prompt NEGATIVE_PROMPT
+                        The negative prompt to guide what the model should not
+                        generate.
+  --seed SEED [SEED ...]
+                        Specify 1+ Entropy Seeds (Default is 1 time-based
+                        random-seed)
+  --auto-seeds AUTO_SEEDS
+                        Auto generate N Entropy Seeds (random ints between 0
+                        and 1 billion
+  --scheduler SCHEDULER
+                        Choose from implemented schedulers (linear only for
+                        now). Or bring your own:
+                        'your_package.some_module.FooScheduler'
+  --height HEIGHT       Image height (Default is source image height)
+  --width WIDTH         Image width (Default is source image width)
+  --steps STEPS         Inference Steps
+  --guidance GUIDANCE   Guidance Scale (Default varies by tool: 3.5 for most,
+                        30 for fill tools, 10 for depth)
+  --config-from-metadata, -C CONFIG_FROM_METADATA
+                        Re-use the parameters from prior metadata. Params from
+                        metadata are secondary to other args you provide.
+  --image PATH [STRENGTH ...]
+                        Init image as an atomic PATH with optional STRENGTH
+                        (default 0.4): --image photo.jpg 0.6. Preferred over
+                        --image-path/--image-strength.
+  --image-path IMAGE_PATH
+                        [DEPRECATED: use --image] Local path to init image
+  --image-strength IMAGE_STRENGTH
+                        [DEPRECATED: use --image] Controls how strongly the
+                        init image influences the output image. A value of 0.0
+                        means no influence. (Default is 0.4)
+  --metadata            Export image metadata as a JSON file.
+  --output OUTPUT       The filename for the output image. Default is
+                        "image.png".
+  --stepwise-image-output-dir STEPWISE_IMAGE_OUTPUT_DIR
+                        [EXPERIMENTAL] Output dir to write step-wise images
+                        and their final composite image to. This feature may
+                        change in future versions.
+
+LoRA configuration:
+  --lora-style {couple,font,home,identity,illustration,portrait,ppt,sandstorm,sparklers,storyboard}
+                        Style of the LoRA to use (e.g., 'storyboard' for film
+                        storyboard style)
+  --lora PATH [SCALE ...]
+                        Add a LoRA as an atomic PATH with optional SCALE
+                        (default 1.0). Repeatable: --lora A.safetensors 0.7
+                        --lora B.safetensors. PATH accepts local files,
+                        HuggingFace repos (org/model), or collection format
+                        (repo:filename.safetensors). Preferred over --lora-
+                        paths/--lora-scales.

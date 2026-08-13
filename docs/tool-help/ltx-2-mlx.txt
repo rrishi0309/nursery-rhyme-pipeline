@@ -1,0 +1,255 @@
+usage: ltx-2-mlx [-h]
+                 {generate,a2v,retake,extend,keyframe,ic-lora,lipdub,hdr-ic-lora,enhance,info,train,preprocess,slice}
+                 ...
+
+LTX-2.3 video generation on Apple Silicon (MLX)
+
+positional arguments:
+  {generate,a2v,retake,extend,keyframe,ic-lora,lipdub,hdr-ic-lora,enhance,info,train,preprocess,slice}
+    generate            Generate video from text (T2V) or image (I2V)
+    a2v                 [beta] Generate video from audio + text prompt
+    retake              [beta] Regenerate a time segment of an existing video
+    extend              [beta] Add frames before or after an existing video
+    keyframe            Interpolate between keyframe images
+    ic-lora             Generate video with IC-LoRA control conditioning
+    lipdub              [experimental] Lip-dub a reference video: re-generate
+                        visuals matching the reference audio.
+    hdr-ic-lora         Generate HDR video via IC-LoRA with LogC3 inverse
+                        (saves SDR mp4 + .hdr.npz)
+    enhance             Enhance a prompt using Gemma (no video generation)
+    info                Show model info and memory estimate
+    train               Train a LoRA or full model (requires ltx-trainer-mlx)
+    preprocess          Preprocess videos into latents + conditions for
+                        training
+    slice               Slice long videos into normalized training clips
+                        (audio retained)
+
+options:
+  -h, --help            show this help message and exit
+
+examples:
+  ltx-2-mlx generate --prompt "a sunset" --output sunset.mp4
+  ltx-2-mlx generate --prompt "animate" --image photo.jpg -o anim.mp4
+  ltx-2-mlx generate --prompt "a scene" --two-stage -o hires.mp4
+  ltx-2-mlx a2v --prompt "music video" --audio music.wav -o a2v.mp4
+  ltx-2-mlx retake --prompt "new scene" --video source.mp4 --start 1 --end 3 -o out.mp4
+  ltx-2-mlx extend --prompt "continue" --video source.mp4 --extend-frames 2 -o out.mp4
+  ltx-2-mlx keyframe --prompt "transition" --start img1.png --end img2.png -o out.mp4
+  ltx-2-mlx ic-lora --prompt "scene" --lora lora.safetensors 1.0 --video-conditioning depth.mp4 1.0 -o out.mp4
+  ltx-2-mlx enhance --prompt "a cat walking" --mode t2v
+  ltx-2-mlx info --model dgrauet/ltx-2.3-mlx-q4
+
+============================================================
+SUBCOMMAND: ltx-2-mlx generate --help
+============================================================
+usage: ltx-2-mlx generate [-h] --prompt PROMPT --output OUTPUT [--model MODEL]
+                          [--gemma GEMMA] [--seed SEED] [--quiet]
+                          [--height HEIGHT] [--width WIDTH] [--frames FRAMES]
+                          --frame-rate FRAME_RATE [--tile-frames TILE_FRAMES]
+                          [--tile-spatial TILE_SPATIAL]
+                          [--tile-overlap TILE_OVERLAP] [--low-ram]
+                          [--image ARG [ARG ...]] [--segment ARG [ARG ...]]
+                          [--relay-epsilon RELAY_EPSILON]
+                          [--relay-strength RELAY_STRENGTH] [--steps STEPS]
+                          [--two-stage] [--two-stages-hq] [--distilled]
+                          [--one-stage] [--stage1-steps STAGE1_STEPS]
+                          [--stage2-steps STAGE2_STEPS]
+                          [--cfg-scale CFG_SCALE] [--stg-scale STG_SCALE]
+                          [--dev-transformer DEV_TRANSFORMER]
+                          [--distilled-lora DISTILLED_LORA]
+                          [--distilled-lora-strength DISTILLED_LORA_STRENGTH]
+                          [--enable-teacache]
+                          [--teacache-thresh TEACACHE_THRESH]
+                          [--enhance-prompt] [--lora PATH STRENGTH]
+
+options:
+  -h, --help            show this help message and exit
+  --prompt PROMPT, -p PROMPT
+                        Text prompt
+  --output OUTPUT, -o OUTPUT
+                        Output video path (.mp4)
+  --model MODEL, -m MODEL
+                        Model weights (HF repo or path, default:
+                        dgrauet/ltx-2.3-mlx-q8)
+  --gemma GEMMA         Gemma model for text encoding (default: mlx-
+                        community/gemma-3-12b-it-4bit)
+  --seed SEED, -s SEED  Random seed (-1 = random)
+  --quiet, -q           Suppress progress output
+  --height HEIGHT, -H HEIGHT
+                        Video height (default: 480)
+  --width WIDTH, -W WIDTH
+                        Video width (default: 704)
+  --frames FRAMES, -f FRAMES
+                        Number of frames (default: 97)
+  --frame-rate FRAME_RATE
+                        Output frame rate (mandatory; matches upstream
+                        `frame_rate=` on every pipeline). LTX-2.3 was trained
+                        at 24; values far from that drift out of distribution.
+  --tile-frames TILE_FRAMES
+                        Number of temporal tiles for modality tiling (default:
+                        1 = no tiling). Each tile is denoised independently
+                        and blended back. Trades wall-clock for peak memory.
+                        Combine with --low-ram for max savings.
+  --tile-spatial TILE_SPATIAL
+                        Number of spatial tiles per axis (height and width). 2
+                        = 2x2 = 4 spatial tiles. Combined with --tile-frames N
+                        gives N*S*S tiles total. Default: 1.
+  --tile-overlap TILE_OVERLAP
+                        Token-grid overlap between adjacent tiles (default:
+                        2). Higher overlap = smoother blend but more redundant
+                        compute. Ignored when both --tile-frames and --tile-
+                        spatial are 1.
+  --low-ram             Stream transformer blocks from mmap'd safetensors via
+                        mx.compile + per-block sync + Metal heap release. Cuts
+                        transformer peak Metal ~75% (e.g. q8 ~10-12 GB -> ~2.8
+                        GB). Targets 16 GB Macs (q8) and 32 GB Macs (bf16).
+                        Supported on generate (one-stage / --two-stage /
+                        --two-stages-hq), a2v, keyframe, and ic-lora.
+                        Compatible with generate's --lora flag via per-block
+                        BlockLoraSource bind-time fusion. Two-stage at LoRA
+                        strength 1.0 swaps to the pre-fused transformer-
+                        distilled.safetensors at the stage 1->2 transition;
+                        custom strengths trigger bind-time LoRA fusion (slower
+                        but supports any strength).
+  --image ARG [ARG ...], -i ARG [ARG ...]
+                        Reference image for I2V. Form: PATH [FRAME_IDX
+                        STRENGTH [CRF]]. PATH alone defaults to FRAME_IDX=0
+                        STRENGTH=1.0 (legacy single-image I2V). Repeatable to
+                        anchor multiple frames (e.g. --image foo.jpg 0 1.0
+                        --image foo.jpg 96 1.0 to anchor both ends and
+                        preserve identity). FRAME_IDX is the pixel frame index
+                        (0-based); 0 replaces the first latent frame directly,
+                        others guide via VideoConditionByKeyframeIndex.
+                        Mirrors upstream LTX_2_3 --image.
+  --segment ARG [ARG ...]
+                        Prompt Relay segment: a local prompt gated to a slice
+                        of the timeline. Form: TEXT [LEN_FRAMES] (LEN_FRAMES
+                        in latent frames; omit to auto-distribute evenly).
+                        Repeatable, in timeline order — e.g. --segment 'a red
+                        car' --segment 'a blue sky'. The global --prompt
+                        applies to all frames. Works on all generate modes
+                        (video cross-attention); on CFG modes the mask applies
+                        to the conditional pass only. Not compatible with
+                        modality tiling.
+  --relay-epsilon RELAY_EPSILON
+                        Prompt Relay falloff (smaller = sharper temporal
+                        gating). Default: 1e-3.
+  --relay-strength RELAY_STRENGTH
+                        Prompt Relay penalty multiplier (higher = stricter
+                        segment isolation). Default: 1.0.
+  --steps STEPS         Denoising steps for one-stage (default: 8)
+  --two-stage           Two-stage pipeline: dev model + CFG at half-res,
+                        upscale, distilled LoRA refine (requires q8 model)
+  --two-stages-hq       HQ two-stage pipeline (res_2s sampler for stage 1).
+                        Mirrors upstream TI2VidTwoStagesHQPipeline.
+  --distilled           Distilled two-stage pipeline (half-res distilled +
+                        upscale + distilled refine, no CFG). Mirrors upstream
+                        DistilledPipeline.
+  --one-stage           Dev model + CFG one-stage at full target resolution
+                        (no upsampler, no stage 2). Mirrors upstream
+                        TI2VidOneStagePipeline. Higher quality than
+                        --distilled at small resolutions; slower than --two-
+                        stage at large.
+  --stage1-steps STAGE1_STEPS
+                        Stage 1 steps (default: 30 standard, 15 HQ)
+  --stage2-steps STAGE2_STEPS
+                        Stage 2 steps (default: 3)
+  --cfg-scale CFG_SCALE
+                        CFG guidance scale (default: 3.0)
+  --stg-scale STG_SCALE
+                        STG guidance scale (default: 1.0 standard, 0.0 HQ —
+                        upstream LTX_2_3_PARAMS)
+  --dev-transformer DEV_TRANSFORMER
+                        Dev transformer filename (default: transformer-
+                        dev.safetensors)
+  --distilled-lora DISTILLED_LORA
+                        Distilled LoRA filename for stage 2 (default:
+                        ltx-2.3-22b-distilled-lora-384.safetensors)
+  --distilled-lora-strength DISTILLED_LORA_STRENGTH
+                        Distilled LoRA strength for stage 2 (default: 1.0)
+  --enable-teacache     Two-stage (--two-stage / --two-stages-hq) only: enable
+                        TeaCache stage-1 acceleration (opt-in, ~1.46x speedup
+                        on Euler at default thresh; see CLAUDE.md)
+  --teacache-thresh TEACACHE_THRESH
+                        Override TeaCache rel_l1_thresh (default 0.5; higher =
+                        more skipping = faster but lossier). Ignored unless
+                        --enable-teacache is set.
+  --enhance-prompt      Enhance prompt using Gemma before generation
+  --lora PATH STRENGTH  LoRA weights and strength (repeatable). PATH can be a
+                        local .safetensors file or a HuggingFace repo ID.
+                        Example: --lora my_lora.safetensors 1.0
+
+============================================================
+SUBCOMMAND: ltx-2-mlx info --help
+============================================================
+usage: ltx-2-mlx info [-h] [--model MODEL]
+
+options:
+  -h, --help            show this help message and exit
+  --model MODEL, -m MODEL
+                        Model weights (HF repo or path)
+
+============================================================
+ADDITIONAL CONTEXT (not part of --help output):
+
+INSTALL WORKAROUND REQUIRED: `uv sync --all-extras` initially FAILED to
+build ltx-pipelines-mlx (and would also affect ltx-core-mlx / ltx-trainer):
+  ValueError: Readme path must be within the project directory: ../../README.md
+Each workspace package's pyproject.toml declares `readme = "../../README.md"`,
+which hatchling's editable-build validation rejects because it resolves
+outside that package's own directory. WORKAROUND applied (in the cloned
+tool checkout only, NOT in the nursery project repo): copied the repo-root
+README.md into each of packages/ltx-core-mlx/, packages/ltx-pipelines-mlx/,
+packages/ltx-trainer/, and changed each package's `readme = "../../README.md"`
+to `readme = "README.md"`. After that, `uv sync --all-extras` completed
+successfully (auto-installed Python 3.11.15 as this repo's own venv, since
+requires-python = ">=3.11").
+
+Verified working invocation:
+  cd ~/.cache/nursery-tools/ltx-2-mlx && uv run ltx-2-mlx generate --prompt "..." --image scene.png --output out.mp4 ...
+  (or, once installed: ~/.cache/nursery-tools/ltx-2-mlx/.venv/bin/ltx-2-mlx generate ...)
+
+CRITICAL FINDING #1 - NO AUDIO-SKIP FLAG ON `generate`:
+`ltx-2-mlx generate` (used for T2V/I2V) has NO flag to skip, mute, or
+discard audio generation. Per README.md: "Text-to-Video — generate video +
+stereo 48kHz audio from a text prompt" - the model is a joint audio-video
+DiT and `generate` always produces an audio track baked into the output
+.mp4. The full `generate --help` flag list (~30 flags) contains nothing
+audio-related. Audio-related flags (--audio, --audio-start, --no-regen-audio)
+exist ONLY on the separate `a2v` subcommand, which is audio-CONDITIONED
+video generation (different mode, takes an existing audio file as input),
+not applicable here. CONCLUSION: the pipeline must strip LTX's baked-in
+audio downstream in ffmpeg (e.g. `-an` on the LTX clip inputs in the
+assemble stage), exactly as already anticipated in the project's plan.
+There is no way to suppress it at generation time.
+
+Default model repo: dgrauet/ltx-2.3-mlx-q8 (per `--model` default).
+`dgrauet/ltx-2.3-mlx-q4` also exists and is referenced in the tool's own
+`info` example; not confirmed as available in a 4-bit "distilled" variant
+under a different name. Both repos were confirmed to exist on Hugging Face
+via metadata lookup (model_info) WITHOUT downloading weights.
+
+Key flags for the pipeline's animate stage (from `generate --help`):
+  --prompt, -p PROMPT          Text prompt (required)
+  --output, -o OUTPUT          Output video path .mp4 (required)
+  --image, -i ARG [ARG ...]    Reference image for I2V: PATH [FRAME_IDX
+                                STRENGTH [CRF]]; repeatable to anchor
+                                multiple frames
+  --model, -m MODEL            HF repo or path (default:
+                                dgrauet/ltx-2.3-mlx-q8)
+  --seed, -s SEED               -1 = random
+  --height, -H / --width, -W    default 480 / 704
+  --frames, -f FRAMES           default 97
+  --frame-rate FRAME_RATE       mandatory, no default shown (LTX-2.3
+                                trained at 24)
+  --steps STEPS                 one-stage denoising steps, default 8
+  --two-stage / --two-stages-hq / --distilled / --one-stage   pipeline mode
+  --stage1-steps / --stage2-steps
+  --cfg-scale / --stg-scale
+  --low-ram                     streams transformer blocks, cuts peak
+                                Metal memory ~75%
+  --lora PATH STRENGTH          repeatable
+
+No --width/--height/--frames DIVISIBLE-BY constraint is documented in the
+help text itself; the project's existing SIZE_QUANTUM/FRAME_QUANTUM
+snapping logic (nursery/providers/animate_ltx.py) should keep applying.

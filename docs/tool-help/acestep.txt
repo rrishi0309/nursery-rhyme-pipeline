@@ -1,0 +1,101 @@
+W0812 18:01:09.576000 86384 .venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/redirects.py:29] NOTE: Redirects are currently not supported in Windows or MacOs.
+/Users/rramesh/.cache/nursery-tools/ACE-Step-1.5/.venv/lib/python3.12/site-packages/torchao/quantization/quant_api.py:1811: SyntaxWarning: invalid escape sequence '\.'
+  """Configuration class for applying different quantization configs to modules or parameters based on their fully qualified names (FQNs).
+2026-08-12 18:01:17.959 | WARNING  | acestep.training.trainer:<module>:40 - bitsandbytes not installed. Using standard AdamW.
+2026-08-12 18:01:18.058 | INFO     | acestep.gpu_config:get_gpu_config:846 - macOS MPS detected (51.8 GB unified memory, tier=unlimited). Applying Apple Silicon optimizations: no compile, no quantization, mlx backend, no CPU offload.
+Loaded configuration from /Users/rramesh/.cache/nursery-tools/ACE-Step-1.5/.env.example (fallback)
+
+============================================================
+GPU Configuration Detected:
+============================================================
+  GPU Memory: 51.84 GiB
+  Configuration Tier: unlimited
+  Max Duration (with LM): 600s (10 min)
+  Max Duration (without LM): 600s (10 min)
+  Max Batch Size (with LM): 8
+  Max Batch Size (without LM): 8
+  Default LM Init: True
+  Available LM Models: ['acestep-5Hz-lm-0.6B', 'acestep-5Hz-lm-1.7B', 'acestep-5Hz-lm-4B']
+============================================================
+
+CPU offload disabled by default (GPU >= 16GB)
+usage: cli.py [-h] [-c CONFIG] [--configure] [--backend {vllm,pt,mlx}]
+              [--log-level LOG_LEVEL]
+
+ACE-Step 1.5: Music generation (wizard/config only).
+
+options:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Path to a TOML configuration file to load. (default:
+                        None)
+  --configure           Run wizard to save configuration without generating.
+                        (default: False)
+  --backend {vllm,pt,mlx}
+                        5Hz LM backend. Auto-detected if not specified: 'mlx'
+                        on Apple Silicon, 'vllm' on CUDA, 'pt' otherwise.
+                        (default: None)
+  --log-level LOG_LEVEL
+                        Logging level for internal modules
+                        (TRACE/DEBUG/INFO/WARNING/ERROR/CRITICAL). (default:
+                        INFO)
+
+============================================================
+ADDITIONAL CONTEXT (not part of --help output, captured from source
+since `cli.py --help` does not expose generation flags):
+
+cli.py is WIZARD/CONFIG ONLY. There are no --prompt/--lyrics/--output/--seed
+CLI flags. Generation requires a TOML config file passed via `-c/--config`.
+
+From docs/en/CLI.md:
+  Generate via wizard (interactive):   python cli.py
+  Generate from a saved config:        python cli.py --config config.toml
+  Create/edit config without running:  python cli.py --configure [--config config.toml]
+
+The full set of recognized TOML keys, taken verbatim from the `defaults`
+dict in cli.py (main(), ~line 1069) and the GenerationParams/GenerationConfig
+dataclasses in acestep/inference.py:
+
+  save_dir            (str, default "output")   - output directory for audio
+  audio_format        (str, default "flac")      - "mp3"|"wav"|"flac"|"wav32"|"opus"|"aac"
+  caption             (str, default "")          - style/genre description
+  prompt              (str, default "")
+  lyrics              (str|None, default None)   - the song lyrics text
+  duration            (float, default -1.0)      - -1 = auto/unspecified
+  instrumental        (bool, default False)
+  bpm                 (int|None)
+  keyscale            (str)
+  timesignature       (str)
+  vocal_language       (str, default "unknown")
+  task_type           (str, default "text2music")
+  instruction         (str)                      - task instruction prompt
+  reference_audio     (str|None)
+  src_audio           (str|None)
+  repainting_start / repainting_end (float)
+  audio_cover_strength (float)
+  inference_steps     (int, default 8)
+  seed                (int, default -1)           - -1 = random
+  guidance_scale      (float, default 7.0)
+  batch_size          (int, default 1 from CLI / 2 from GenerationConfig)
+  seeds               (list[int]|None)            - per-batch-item seeds
+  thinking            (bool, default = gpu_config.init_lm_default)
+  backend             (str: "vllm"|"pt"|"mlx"; CLI --backend overrides;
+                        auto-detects "mlx" on Apple Silicon)
+  checkpoint_dir       (str, default resolved via model_downloader)
+  lm_model_path        (str|None)
+  device                (str, default "auto")
+  offload_to_cpu / offload_dit_to_cpu (bool)
+
+cli.py --help itself only exposes: -c/--config, --configure, --backend
+{vllm,pt,mlx}, --log-level. No --prompt, --output, --seed, --width/height,
+--frames, or --model-repo flags exist directly on the CLI.
+
+Verified working invocation (installed cleanly, run from the cloned repo's
+own uv-managed venv, NOT the nursery project venv):
+  cd ~/.cache/nursery-tools/ACE-Step-1.5 && uv run python cli.py --help
+  cd ~/.cache/nursery-tools/ACE-Step-1.5 && uv run python cli.py --config <path-to-toml>
+
+`uv sync` in that repo auto-selected Python 3.12.8 (repo requires >=3.11,<3.13,
+incompatible with the project's Python 3.14). This confirms the SUMMARY.md
+recommendation to invoke ACE-Step via a per-tool `python` path, e.g.
+~/.cache/nursery-tools/ACE-Step-1.5/.venv/bin/python cli.py --config <toml>
