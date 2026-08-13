@@ -6,10 +6,12 @@ already produces a canonical still per scene, seeded and steered by
 recognisable across ~20 scenes. Text-to-video would re-roll the character
 every scene.
 
-Rendering shells out to the `mlx_video.models.ltx_2.generate` CLI, the same
-pattern this codebase already uses for `mflux-generate` and `ffmpeg`. Note the
-module path: mlx-video's own `--help` examples say `python -m
-mlx_video.generate`, but no such module exists in the installed package.
+Rendering shells out to the `ltx-2-mlx generate` CLI. That tool is not
+installed into this project's own venv - it lives in its own `uv`-managed
+venv under `~/.cache/nursery-tools/ltx-2-mlx/.venv/` (see
+`docs/tool-help/SUMMARY.md` section 5), so `self.bin` is a full path to that
+venv's `ltx-2-mlx` console script, not a bare command looked up on the
+project's PATH.
 
 Two hard constraints from LTX, both encoded here:
 
@@ -17,26 +19,29 @@ Two hard constraints from LTX, both encoded here:
   *up* to the next valid count and the assemble stage trims back down to the
   exact scene duration. Generating long and trimming is what keeps scene
   timings locked to the audio alignment.
-- Width and height must be divisible by 64. 1024x576 is native 16:9
-  (16*64 by 9*64) and upscales cleanly to 1920x1080 in the assemble graph.
+- Width and height must be divisible by 64. `ltx-2-mlx`'s own defaults are
+  704x480; the assemble stage upscales clips to match `VideoConfig`'s
+  1920x1080 output canvas.
 
-The flag set below is taken from `--help` on an installed build. Two flags are
-pipeline-sensitive: `--cfg-scale` and `--negative-prompt` apply only to the
-`dev` pipelines, since `distilled` runs without CFG at all, so passing them
-alongside `distilled` is silently meaningless.
+`--frame-rate` is mandatory on `ltx-2-mlx generate` - it has no tool default,
+and omitting it is an immediate argparse error. LTX-2.3 was trained at 24fps,
+so `frames_for` is driven by `self.frame_rate`, not the pipeline's overall
+video fps; the assemble stage reconciles the two.
+
+There is no audio-skip flag anywhere on `generate` - every clip it writes has
+a baked-in stereo audio track. That is stripped downstream with ffmpeg `-an`
+in the assemble stage; this provider does not attempt to suppress it.
 """
 
 from __future__ import annotations
 
 import logging
 import math
+import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 log = logging.getLogger(__name__)
-
-MODULE = "mlx_video.models.ltx_2.generate"
 
 FRAME_QUANTUM = 8
 SIZE_QUANTUM = 64
@@ -44,11 +49,6 @@ SIZE_QUANTUM = 64
 MOTION_SUFFIX = (
     "gentle storybook motion, subtle camera drift, characters stay on model, "
     "consistent art style, no scene change"
-)
-
-NEGATIVE = (
-    "text, letters, words, watermark, blurry, deformed, ugly, photorealistic, "
-    "horror, scary, dark, gore, extra limbs, distorted faces, flicker, morphing"
 )
 
 
@@ -68,6 +68,17 @@ def snap_size(value: int) -> int:
     return max(SIZE_QUANTUM, math.ceil(value / SIZE_QUANTUM) * SIZE_QUANTUM)
 
 
+def _binary(bin_path: str) -> str:
+    found = shutil.which(bin_path)
+    if found is None:
+        raise LTXUnavailableError(
+            f"{bin_path} not found. ltx-2-mlx lives in its own venv, not the project's - "
+            "see docs/tool-help/SUMMARY.md section 5 for the clone + `uv sync --all-extras` "
+            "steps, then point AnimateConfig.bin at that venv's `ltx-2-mlx` binary."
+        )
+    return found
+
+
 class LTXAnimateProvider:
     """Animates one still per scene with LTX-2.3 image-to-video."""
 
@@ -75,62 +86,54 @@ class LTXAnimateProvider:
 
     def __init__(
         self,
-        pipeline: str = "distilled",
-        width: int = 1024,
-        height: int = 576,
-        fps: int = 30,
-        cfg_scale: float | None = None,
-        image_strength: float | None = None,
-        python: str | None = None,
-        model_repo: str | None = None,
+        bin: str,
+        model_repo: str = "dgrauet/ltx-2.3-mlx-q4",
+        width: int = 704,
+        height: int = 480,
+        frame_rate: int = 24,
+        steps: int = 8,
+        two_stage: bool = False,
+        low_ram: bool = True,
     ):
+        self.bin = bin
         self.model_repo = model_repo
-        self.pipeline = pipeline
         self.width = snap_size(width)
         self.height = snap_size(height)
-        self.fps = fps
-        self.cfg_scale = cfg_scale
-        self.image_strength = image_strength
-        # mlx-video drags in librosa/numba, so it may live in its own
-        # interpreter rather than the pipeline's.
-        self.python = python or sys.executable
+        # Mandatory on ltx-2-mlx generate; LTX-2.3 was trained at 24fps, so
+        # this (not the pipeline's overall video fps) drives frame counts.
+        self.frame_rate = frame_rate
+        self.steps = steps
+        self.two_stage = two_stage
+        self.low_ram = low_ram
 
     def _command(self, image: Path, prompt: str, frames: int, seed: int, out: Path) -> list[str]:
         cmd = [
-            self.python, "-m", MODULE,
-            "--image", str(image),
+            _binary(self.bin), "generate",
             "--prompt", prompt,
-            "--num-frames", str(frames),
+            # PATH alone -> FRAME_IDX=0 STRENGTH=1.0, i.e. anchor the whole
+            # clip on this still. --image is repeatable on this tool (unlike
+            # mflux's), but this provider only ever anchors frame 0.
+            "--image", str(image),
+            "--output", str(out),
+            "--frames", str(frames),
             "--width", str(self.width),
             "--height", str(self.height),
-            "--fps", str(self.fps),
+            "--frame-rate", str(self.frame_rate),
             "--seed", str(seed),
-            "--pipeline", self.pipeline,
-            "--output-path", str(out),
-            # Documented as more stable than plain CFG for image-to-video,
-            # which is the only mode this provider runs.
-            "--apg",
+            "--steps", str(self.steps),
+            "--model", self.model_repo,
         ]
-        # mlx-video defaults to Lightricks/LTX-2 (19B). Pin explicitly rather
-        # than inheriting that default, so which weights ran is recorded.
-        if self.model_repo:
-            cmd += ["--model-repo", self.model_repo]
-        if self.image_strength is not None:
-            cmd += ["--image-strength", str(self.image_strength)]
-
-        # CFG and negative prompts exist only on the dev pipelines; the
-        # distilled one runs without guidance.
-        if self.pipeline != "distilled":
-            cmd += ["--negative-prompt", NEGATIVE]
-            if self.cfg_scale is not None:
-                cmd += ["--cfg-scale", str(self.cfg_scale)]
+        if self.two_stage:
+            cmd.append("--two-stage")
+        if self.low_ram:
+            cmd.append("--low-ram")
         return cmd
 
     def animate(
         self, image: Path, prompt: str, duration_s: float, seed: int, out: Path
     ) -> Path:
         out.parent.mkdir(parents=True, exist_ok=True)
-        frames = frames_for(duration_s, self.fps)
+        frames = frames_for(duration_s, self.frame_rate)
         full = f"{prompt}, {MOTION_SUFFIX}"
 
         cmd = self._command(image, full, frames, seed, out)
@@ -139,15 +142,8 @@ class LTXAnimateProvider:
 
         if proc.returncode != 0:
             tail = "\n".join(proc.stderr.strip().splitlines()[-25:])
-            if "No module named" in proc.stderr:
-                raise LTXUnavailableError(
-                    f"{MODULE} not importable under {self.python}. Install with "
-                    "`uv add 'mlx-video @ git+https://github.com/Blaizzy/mlx-video.git' "
-                    "'numba>=0.62'` - the numba floor is required, or uv "
-                    "backtracks to a release that refuses to build on Python 3.12+."
-                )
-            raise RuntimeError(f"LTX exited {proc.returncode}:\n{tail}")
+            raise RuntimeError(f"ltx-2-mlx exited {proc.returncode}:\n{tail}")
 
         if not out.exists():
-            raise RuntimeError(f"LTX reported success but wrote no file at {out}")
+            raise RuntimeError(f"ltx-2-mlx reported success but wrote no file at {out}")
         return out

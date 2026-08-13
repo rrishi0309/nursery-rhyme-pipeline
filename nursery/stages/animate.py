@@ -104,15 +104,22 @@ def build_provider(cfg: Config):
     if which == "ltx":
         from nursery.providers.animate_ltx import LTXAnimateProvider
 
+        # ltx-2-mlx lives in its own venv, not the project's own PATH - see
+        # docs/tool-help/SUMMARY.md section 5. getattr defaults below match
+        # AnimateConfig's own defaults so this keeps working if that config
+        # class (owned by a concurrent task) is mid-rewrite.
+        default_bin = str(
+            Path.home() / ".cache" / "nursery-tools" / "ltx-2-mlx" / ".venv" / "bin" / "ltx-2-mlx"
+        )
         return LTXAnimateProvider(
-            model_repo=cfg.animate.model_repo,
-            pipeline=cfg.animate.pipeline,
-            width=cfg.animate.width,
-            height=cfg.animate.height,
-            fps=cfg.video.fps,
-            cfg_scale=cfg.animate.cfg_scale,
-            image_strength=cfg.animate.image_strength,
-            python=cfg.animate.python,
+            bin=getattr(cfg.animate, "bin", default_bin),
+            model_repo=getattr(cfg.animate, "model_repo", "dgrauet/ltx-2.3-mlx-q4"),
+            width=getattr(cfg.animate, "width", 704),
+            height=getattr(cfg.animate, "height", 480),
+            frame_rate=getattr(cfg.animate, "frame_rate", 24),
+            steps=getattr(cfg.animate, "steps", 8),
+            two_stage=getattr(cfg.animate, "two_stage", False),
+            low_ram=getattr(cfg.animate, "low_ram", True),
         )
     raise KeyError(f"unknown animate provider {which!r}")
 
