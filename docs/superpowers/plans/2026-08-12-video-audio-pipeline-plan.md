@@ -59,15 +59,27 @@ Rewrite `nursery/config.py` for the new pipeline. Read
 Add pydantic models:
 - `LyricsConfig`: `model_repo` (default `mlx-community/Qwen3.5-4B-MLX-4bit`),
   `max_tokens`, `temperature`, `max_retries` (default 3)
-- `SongConfig`: `variant`, `steps`, `guidance`, plus a `python`/`repo_dir` path
-  for the ACE-Step checkout
-- `AlignConfig`: `model` (whisper size), `max_drift_s` (default 0.75)
-- `ImageConfig`: `model` (default FLUX.2 Klein 4B per SUMMARY.md), `steps`,
-  `width` 1344, `height` 768, `quantize` 4
-- `AnimateConfig`: keep `width` 1024, `height` 576, `min_source_ssim` 0.55,
-  `min_motion_ssim` 0.35, `max_motion_ssim` 0.995. Replace `model_repo` default
-  with the ltx-2-mlx weights repo, drop `pipeline`/`cfg_scale`/`image_strength`,
-  add `two_stage: bool = False`, `low_ram: bool = False`, `repo_dir: str | None`
+- `SongConfig`: `variant`, `inference_steps`, `guidance_scale`, `audio_format`
+  (`"wav"`), `duration` (-1.0 = auto), `backend` (`"mlx"`), plus `python`
+  (`~/.cache/nursery-tools/ACE-Step-1.5/.venv/bin/python`) and `repo_dir`
+  (`~/.cache/nursery-tools/ACE-Step-1.5`)
+- `AlignConfig`: `model` (whisper size, default `"small"`), `backend`
+  (default `"lightning"` — plain `mlx` may not emit word timestamps),
+  `max_drift_s` (default 0.75), plus `bin` pointing at
+  `~/.cache/nursery-tools/whisperx-mlx/.venv/bin/whisperx`
+- `ImageConfig`: `model` (default `"flux2-klein-4b"`), `steps`, `width` 1344,
+  `height` 768, `quantize` 4, `guidance` 3.5, `cast_strength` (float, default
+  0.35 — the img2img strength used when conditioning a scene on the cast sheet)
+- `AnimateConfig`: keep `min_source_ssim` 0.55, `min_motion_ssim` 0.35,
+  `max_motion_ssim` 0.995. Set `width` 704, `height` 480 (ltx-2-mlx defaults —
+  the old 1024x576 was for a different tool), `frame_rate` 24 (**mandatory,
+  the tool has no default**; LTX-2.3 was trained at 24fps), `model_repo`
+  default `dgrauet/ltx-2.3-mlx-q4`, `steps` 8. Drop `pipeline`, `cfg_scale`,
+  `image_strength`. Add `two_stage: bool = False`, `low_ram: bool = True`,
+  and `bin` pointing at `~/.cache/nursery-tools/ltx-2-mlx/.venv/bin/ltx-2-mlx`
+
+Note `nursery/video/kenburns.py` and `assemble` still render at
+`VideoConfig.width/height` (1920x1080); LTX clips are upscaled to match.
 
 Update the `providers` dict to exactly:
 `{"lyrics": "qwen", "song": "acestep", "align": "whisperx", "image": "flux2", "animate": "ltx"}`.
@@ -108,11 +120,21 @@ New `nursery/providers/song_acestep.py` and `nursery/providers/align_whisperx.py
 Read `docs/tool-help/` for both invocations.
 
 `SongProvider.generate(lyrics: list[str], style: str, seed: int, out: Path) -> Path`
-- Joins lyrics with newlines, shells out to ACE-Step, writes one WAV
+- **ACE-Step has NO generate flags — it is TOML-config-only.** Write a temp
+  `.toml` with the keys SUMMARY.md lists (`save_dir`, `audio_format="wav"`,
+  `caption` = style, `lyrics` = lines joined by newline, `duration`,
+  `instrumental=false`, `task_type="text2music"`, `inference_steps`, `seed`,
+  `guidance_scale`, `backend="mlx"`), then run
+  `<song.python> cli.py --config <toml>` with `cwd=<song.repo_dir>`
+- ACE-Step writes into `save_dir`; move/rename the produced file to `out`
 - Raises `SongError` with the stderr tail on non-zero exit
 
 `AlignProvider.align(audio: Path, lines: list[str], out_dir: Path) -> list[tuple[float, float]]`
-- Shells out to whisperx-mlx for word-level timestamps (JSON)
+- Runs `<align.bin> <audio> --backend <align.backend> --model <align.model>
+  -o <out_dir> -f json --word_timestamps True`. Note SUMMARY.md's warning:
+  `--word_timestamps` is documented as requiring a `lightning` backend, so
+  plain `mlx` may return empty word spans — that is exactly what the fallback
+  below is for.
 - Maps recognised words back onto the supplied lyric lines in order, returning
   one `(start_s, end_s)` per line
 - Sung vowels stretch and ASR drops words, so matching must be tolerant:
@@ -134,11 +156,19 @@ New `nursery/providers/image_flux2.py`. Read `docs/tool-help/` for flags.
   renders one image of all characters together, prompt built from their names
   and descriptions plus the style
 - `generate(prompt, reference, seed, out) -> Path` — one scene still.
-  When `reference` is not None and SUMMARY.md shows a reference-image flag,
-  pass it. When SUMMARY.md shows **no** reference flag for FLUX.2 Klein 4B,
-  fall back to appending the cast descriptions to the prompt text and log a
-  warning once — the pipeline must still run. Report DONE_WITH_CONCERNS in
-  that case.
+
+**Known limitation, design around it:** `mflux-generate-flux2 --image PATH
+[STRENGTH]` is a single non-repeatable **img2img** control, NOT an
+identity-preserving multi-reference adapter. Passing the cast sheet at high
+strength would copy its composition into every scene, which is wrong. So:
+  - Always append the cast descriptions (name + description) to the scene
+    prompt text. This is the primary consistency mechanism.
+  - Additionally pass `--image <cast_sheet> <cfg.cast_strength>` (default
+    0.35, low on purpose) only when `reference` is provided.
+  - Use a stable per-video base seed so scenes stay stylistically coherent.
+
+Expose `use_reference: bool = True` on the constructor so the img2img path
+can be switched off wholesale if it turns out to hurt.
 - Keep the existing `NEGATIVE` prompt string from `image_flux.py`
 
 Leave `image_flux.py` and `image_sdxl.py` in place as fallbacks.
@@ -156,11 +186,15 @@ Keep unchanged: `frames_for`, `snap_size`, `FRAME_QUANTUM`, `SIZE_QUANTUM`,
 `MOTION_SUFFIX`, the `animate(image, prompt, duration_s, seed, out) -> Path`
 signature, and the `LTXUnavailableError` behaviour on a missing module.
 
-Change: `_command()` builds an `ltx-2-mlx generate` invocation with `--image`,
-`--prompt`, frame count, dimensions, fps, seed, output path, plus `--two-stage`
-and `--low-ram` when configured. Add `--no-audio` **only if** it appears in the
-captured help; otherwise strip audio in assemble instead and note it in the
-report.
+Change: `_command()` builds `<cfg.bin> generate` with `--prompt`, `--image
+<still>` (PATH alone means frame 0 at strength 1.0), `--output`, `--frames`,
+`--width`/`--height`, `--seed`, `--steps`, `--model`, and **`--frame-rate`
+which is mandatory and has no tool default**, plus `--two-stage` and
+`--low-ram` when configured.
+
+**There is no audio-skip flag** — confirmed against the captured help. LTX
+always bakes an audio track into the mp4. Do NOT invent one; assemble strips
+it with `-an` (Task 7).
 
 `nursery/stages/animate.py` keeps its SSIM gate and Ken Burns fallback
 unchanged — only `build_provider` updates for the new config fields.
